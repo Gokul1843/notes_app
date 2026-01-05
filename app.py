@@ -58,7 +58,7 @@ def signup():
             c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
             db.commit()
             db.close()
-            return redirect("/login")
+            return redirect("login.html")
         except sqlite3.IntegrityError:
             return "Username already exists"
 
@@ -75,7 +75,7 @@ def login():
         # Admin login
         if username == "admin" and password == "admin123":
             session["user"] = "admin"
-            return redirect("/dashboard")
+            return redirect("dashboard.html")
 
         # Check normal user
         db = get_db()
@@ -86,7 +86,7 @@ def login():
 
         if user:
             session["user"] = username
-            return redirect("/dashboard")
+            return redirect("dashboard.html")
         else:
             return "Invalid login"
 
@@ -96,13 +96,13 @@ def login():
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect("/login")
+    return redirect("login.html")
 
 # ---------- DASHBOARD ----------
-@app.route("/dashboard")
+@app.route("dashboard.html")
 def dashboard():
     if "user" not in session:
-        return redirect("/login")
+        return redirect("login.html")
 
     db = get_db()
     c = db.cursor()
@@ -135,7 +135,7 @@ def upload():
         db.commit()
         db.close()
 
-        return redirect("/dashboard")
+        return redirect("dashboard.html")
     except Exception as e:
         return f"Error uploading file: {e}"
 

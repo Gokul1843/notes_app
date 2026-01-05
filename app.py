@@ -13,7 +13,7 @@ app.secret_key = os.getenv("SECRET_KEY", "secret123")
 cloudinary.config(
    cloud_name=os.getenv("dsqtxr1rx"),
     api_key=os.getenv("519854219173359"),
-    api_secret=os.getenv("**********")
+    api_secret=os.getenv("CV_pUwDPhCY0HeOGblXLuFE59gM")
 )
 
 # ===============================

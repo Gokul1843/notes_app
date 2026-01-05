@@ -3,68 +3,53 @@ import sqlite3
 import cloudinary
 import cloudinary.uploader
 import os
-from dotenv import load_dotenv
 
-# Load local .env
-load_dotenv()
-
-# Flask app
-app = Flask(__name__)
+app = Flask(_name_)
 app.secret_key = os.getenv("SECRET_KEY", "secret123")
 
-# Cloudinary Config
+# ===============================
+# Cloudinary config (Render ENV)
+# ===============================
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
     api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
 
-# Database setup
+# ===============================
+# Database function
+# ===============================
 def get_db():
     return sqlite3.connect("database.db")
 
-def init_db():
-    db = get_db()
-    c = db.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
-        )
-    """)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
-            url TEXT
-        )
-    """)
-    db.commit()
-    db.close()
-
-init_db()
-
-# ---------- SIGNUP ----------
+# ===============================
+# Signup
+# ===============================
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
 
+        conn = get_db()
+        cursor = conn.cursor()
         try:
-            db = get_db()
-            c = db.cursor()
-            c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
-            db.commit()
-            db.close()
-            return redirect("login.html")
-        except sqlite3.IntegrityError:
+            cursor.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)",
+                (username, password)
+            )
+            conn.commit()
+        except:
             return "Username already exists"
+        conn.close()
+
+        return redirect("/login")
 
     return render_template("signup.html")
 
-# ---------- LOGIN ----------
+# ===============================
+# Login
+# ===============================
 @app.route("/", methods=["GET", "POST"])
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -72,73 +57,72 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        # Admin login
-        if username == "admin" and password == "admin123":
-            session["user"] = "admin"
-            return redirect("dashboard.html")
-
-        # Check normal user
-        db = get_db()
-        c = db.cursor()
-        c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
-        user = c.fetchone()
-        db.close()
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM users WHERE username=? AND password=?",
+            (username, password)
+        )
+        user = cursor.fetchone()
+        conn.close()
 
         if user:
             session["user"] = username
-            return redirect("dashboard.html")
+            return redirect("/dashboard")
         else:
-            return "Invalid login"
+            return "Login invalid"
 
     return render_template("login.html")
 
-# ---------- LOGOUT ----------
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("login.html")
-
-# ---------- DASHBOARD ----------
-@app.route("dashboard.html")
+# ===============================
+# Dashboard (LOGIN REQUIRED)
+# ===============================
+@app.route("/dashboard")
 def dashboard():
     if "user" not in session:
-        return redirect("login.html")
+        return redirect("/login")
 
-    db = get_db()
-    c = db.cursor()
-    c.execute("SELECT filename, url FROM notes")
-    notes = c.fetchall()
-    db.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT filename, url FROM notes")
+    notes = cursor.fetchall()
+    conn.close()
 
     is_admin = session["user"] == "admin"
     return render_template("dashboard.html", notes=notes, is_admin=is_admin)
 
-# ---------- UPLOAD (ADMIN ONLY) ----------
+# ===============================
+# Upload (ADMIN ONLY)
+# ===============================
 @app.route("/upload", methods=["POST"])
 def upload():
     if session.get("user") != "admin":
         return "Not allowed"
 
-    file = request.files.get("file")
-    if not file:
-        return "No file selected"
+    file = request.files["file"]
+    result = cloudinary.uploader.upload(file)
 
-    try:
-        result = cloudinary.uploader.upload(file)
-        file_url = result.get("secure_url")
-        if not file_url:
-            return "Upload failed: Cloudinary did not return URL"
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO notes (filename, url) VALUES (?, ?)",
+        (file.filename, result["secure_url"])
+    )
+    conn.commit()
+    conn.close()
 
-        db = get_db()
-        c = db.cursor()
-        c.execute("INSERT INTO notes (filename, url) VALUES (?, ?)", (file.filename, file_url))
-        db.commit()
-        db.close()
+    return redirect("/dashboard")
 
-        return redirect("dashboard.html")
-    except Exception as e:
-        return f"Error uploading file: {e}"
+# ===============================
+# Logout
+# ===============================
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
 
-# Run locally
-if __name__ == "__main__":
+# ===============================
+# Run app
+# ===============================
+if _name_ == "_main_":
     app.run(debug=True)

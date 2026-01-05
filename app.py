@@ -4,7 +4,7 @@ import cloudinary
 import cloudinary.uploader
 import os
 
-app = Flask(_name_)
+app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "secret123")
 
 # ===============================
@@ -124,5 +124,5 @@ def logout():
 # ===============================
 # Run app
 # ===============================
-if _name_ == "_main_":
+if __name__ == "__main__":
     app.run(debug=True)
